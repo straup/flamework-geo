@@ -4,6 +4,10 @@
 	# $Id$
 	#
 
+	define("GEO_UTILS_R_M", 3963.1676);
+	define("GEO_UTILS_R_KM", 6378.1);
+	define("GEO_UTILS_KM_PER_M", (GEO_UTILS_R_M / GEO_UTILS_R_KM));
+
 	#################################################################
 
 	function geo_utils_prepare_coordinate($coord, $collapse=1){
@@ -76,27 +80,48 @@
 
 	#################################################################
 
-	# http://snipplr.com/view.php?codeview&id=2531
+	function geo_utils_distance($lat1, $lon1, $lat2, $lon2, $unit='m'){
 
-	function geo_utils_distance($lat1, $lng1, $lat2, $lng2, $miles=0){
+		$theta = $lon1 - $lon2; 
+		$dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta)); 
+		$dist = acos($dist); 
+		$dist = rad2deg($dist);
 
-		$pi80 = M_PI / 180;
+		$miles = $dist * 60 * 1.1515;
 
-		$lat1 *= $pi80;
-		$lng1 *= $pi80;
-		$lat2 *= $pi80;
-		$lng2 *= $pi80;
-
-		$r = 6372.797; // mean radius of Earth in km
-		$dlat = $lat2 - $lat1;
-		$dlng = $lng2 - $lng1;
-		$a = sin($dlat / 2) * sin($dlat / 2) + cos($lat1) * cos($lat2) *
-		sin($dlng / 2) * sin($dlng / 2);
-		$c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-		$km = $r * $c;
-
-		return ($miles) ? ($km * 0.621371192) : $km;
+		return ($unit == 'm') ? $miles : $miles * 1.609344; 
 	}
 
 	#################################################################
+
+	function geo_utils_bbox_from_point($lat, $lon, $dist, $unit='m'){
+
+		$sw = geo_utils_move_point($lat, $lon, 225, $dist, $unit);
+		$ne = geo_utils_move_point($lat, $lon, 45, $dist, $unit);
+
+		return array_merge($sw, $ne);
+	}
+
+	#################################################################
+
+	# http://www.richardpeacock.com/sites/default/files/getDueCoords.php__0.txt
+
+	function geo_utils_move_point($lat, $lon, $bearing, $dist, $unit='m'){
+
+		$radius = GEO_UTILS_R_M;
+
+		if ($unit == 'km'){
+			$radius = GEO_UTILS_R_KM;
+			$dist = $dist * GEO_UTILS_KM_PER_M;
+		}
+
+		$new_lat = rad2deg(asin(sin(deg2rad($lat)) * cos($dist / $radius) + cos(deg2rad($lat)) * sin($dist / $radius) * cos(deg2rad($bearing))));
+	      	
+		$new_lon = rad2deg(deg2rad($lon) + atan2(sin(deg2rad($bearing)) * sin($dist / $radius) * cos(deg2rad($lat)), cos($dist / $radius) - sin(deg2rad($lat)) * sin(deg2rad($new_lat))));
+
+		return array($new_lat, $new_lon);
+	}
+
+	#################################################################
+
 ?>
